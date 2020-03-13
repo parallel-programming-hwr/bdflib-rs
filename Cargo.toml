@@ -3,6 +3,8 @@ name = "bdflib"
 version = "0.1.0"
 authors = ["trivernis <trivernis@gmail.com>"]
 edition = "2018"
+license-file = "LICENSE"
+license = "GPL-3"
 
 [lib]
 name = "bdf"
