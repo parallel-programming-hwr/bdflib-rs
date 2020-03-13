@@ -27,7 +27,7 @@ pub struct GenericChunk {
 #[derive(Debug, Clone)]
 pub struct MetaChunk {
     pub chunk_count: u32,
-    entries_per_chunk: u32,
+    pub entries_per_chunk: u32,
     pub entry_count: u64,
     pub compression_method: Option<String>,
 }

@@ -13,6 +13,7 @@ mod tests {
     #[test]
     fn it_writes_uncompressed() -> Result<(), Error> {
         let mut writer = new_writer("tmp1.bdf", 2, false)?;
+        writer.set_entries_per_chunk(24)?;
 
         writer.add_lookup_entry(HashEntry::new(BAR.to_string(), 5))?;
         writer.add_lookup_entry(HashEntry::new(FOO.to_string(), 4))?;

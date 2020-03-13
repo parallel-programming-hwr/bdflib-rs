@@ -62,7 +62,7 @@ impl BDFWriter {
     /// the data will be written to the file
     pub fn add_data_entry(&mut self, data_entry: DataEntry) -> Result<(), Error> {
         self.data_entries.push(data_entry);
-        if self.data_entries.len() >= ENTRIES_PER_CHUNK as usize {
+        if self.data_entries.len() >= self.metadata.entries_per_chunk as usize {
             self.flush()?;
         }
 
@@ -101,6 +101,17 @@ impl BDFWriter {
     /// Sets the compression level for lzma compression
     pub fn set_compression_level(&mut self, level: u32) {
         self.compression_level = level;
+    }
+
+    /// Changes the entries per chunk value.
+    /// Returns an error if the metadata has already been written.
+    pub fn set_entries_per_chunk(&mut self, number: u32) -> Result<(), Error>{
+        if self.head_written {
+            return Err(Error::new(ErrorKind::Other, "the head has already been written"))
+        }
+        self.metadata.entries_per_chunk = number;
+        
+        Ok(())
     }
 }
 
