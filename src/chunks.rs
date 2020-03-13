@@ -80,6 +80,7 @@ impl GenericChunk {
         }
         let mut entries: Vec<DataEntry> = Vec::new();
         let mut position = 0;
+
         while self.data.len() > (position + 8) {
             let entry_length_raw = &self.data[position..position + 4];
             position += 4;
@@ -90,6 +91,7 @@ impl GenericChunk {
             let pw_length = BigEndian::read_u32(pw_length_raw);
             let pw_plain_raw = &self.data[position..position + pw_length as usize];
             position += pw_length as usize;
+
             let pw_plain = String::from_utf8(pw_plain_raw.to_vec())
                 .map_err(|err| {
                     format!(
@@ -105,6 +107,7 @@ impl GenericChunk {
                 let entry_id_raw = &self.data[position..position + 4];
                 position += 4;
                 let entry_id = BigEndian::read_u32(entry_id_raw);
+
                 if let Some(hash_entry) = lookup_table.entries.get(&entry_id) {
                     let hash = &self.data[position..position + hash_entry.output_length as usize];
                     position += hash_entry.output_length as usize;
@@ -126,6 +129,7 @@ impl GenericChunk {
         lookup_table: &HashLookupTable,
     ) -> GenericChunk {
         let mut serialized_data: Vec<u8> = Vec::new();
+
         entries.iter().for_each(|entry| {
             serialized_data.append(&mut entry.serialize(&lookup_table));
         });
@@ -158,6 +162,7 @@ impl GenericChunk {
         let mut decompressed: Vec<u8> = Vec::new();
         decompressor.read_to_end(&mut decompressed)?;
         let crc = crc32::checksum_ieee(decompressed.as_slice());
+
         if crc != self.crc {
             return Err(Error::new(
                 ErrorKind::InvalidData,
@@ -230,6 +235,7 @@ impl MetaChunk {
         BigEndian::write_u64(&mut total_entries_raw, self.entry_count);
         serialized_data.append(&mut total_entries_raw.to_vec());
         let mut compression_method = self.compression_method.clone();
+
         if let Some(method) = &mut compression_method {
             serialized_data.append(&mut method.clone().into_bytes());
         } else {
