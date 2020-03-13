@@ -110,7 +110,7 @@ impl BDFWriter {
             return Err(Error::new(ErrorKind::Other, "the head has already been written"))
         }
         self.metadata.entries_per_chunk = number;
-        
+        self.metadata.chunk_count = (self.metadata.entry_count as f64 / number as f64).ceil() as u32;
         Ok(())
     }
 }
