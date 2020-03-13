@@ -4,14 +4,13 @@ version = "0.1.0"
 authors = ["trivernis <trivernis@gmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
-license = "GPL-3"
 readme = "Readme.md"
 description = "A library to parse bdf files."
 homepage = "https://github.com/parallel-programming-hwr/bdflib-rs"
 
 [lib]
 name = "bdf"
-crate-type = ["staticlib", "cdylib", "lib"]
+crate-type = ["lib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
