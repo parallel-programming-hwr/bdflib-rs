@@ -8,6 +8,7 @@ use std::convert::TryInto;
 
 const ENTRIES_PER_CHUNK: u32 = 100_000;
 
+#[repr(C)]
 pub struct BDFReader {
     reader: BufReader<File>,
     pub metadata: Option<MetaChunk>,
@@ -15,6 +16,7 @@ pub struct BDFReader {
     compressed: bool,
 }
 
+#[repr(C)]
 pub struct BDFWriter {
     writer: BufWriter<File>,
     metadata: MetaChunk,
@@ -25,7 +27,8 @@ pub struct BDFWriter {
 }
 
 impl BDFWriter {
-    pub fn new(writer: BufWriter<File>, entry_count: u64, compress: bool) -> Self {
+    #[no_mangle]
+    pub extern fn new(writer: BufWriter<File>, entry_count: u64, compress: bool) -> Self {
         Self {
             metadata: MetaChunk::new(entry_count, ENTRIES_PER_CHUNK, compress),
             lookup_table: HashLookupTable::new(HashMap::new()),
@@ -38,7 +41,8 @@ impl BDFWriter {
 
     /// Adds an entry to the hash lookup table
     /// If the lookup table has already been written to the file, an error ris returned
-    pub fn add_lookup_entry(&mut self, mut entry: HashEntry) -> Result<u32, Error> {
+    #[no_mangle]
+    pub extern fn add_lookup_entry(&mut self, mut entry: HashEntry) -> Result<u32, Error> {
         if self.head_written {
             return Err(Error::new(
                 ErrorKind::Other,
@@ -55,7 +59,7 @@ impl BDFWriter {
     /// Adds a data entry to the file.
     /// If the number of entries per chunk is reached,
     /// the data will be written to the file
-    pub fn add_data_entry(&mut self, data_entry: DataEntry) -> Result<(), Error> {
+    pub extern fn add_data_entry(&mut self, data_entry: DataEntry) -> Result<(), Error> {
         self.data_entries.push(data_entry);
         if self.data_entries.len() >= ENTRIES_PER_CHUNK as usize {
             self.flush()?;
@@ -65,7 +69,8 @@ impl BDFWriter {
     }
 
     /// Writes the data to the file
-    pub fn flush(&mut self) -> Result<(), Error> {
+    #[no_mangle]
+    pub extern fn flush(&mut self) -> Result<(), Error> {
         if !self.head_written {
             self.writer.write(BDF_HDR)?;
             let mut generic_meta = GenericChunk::from(&self.metadata);
@@ -86,13 +91,15 @@ impl BDFWriter {
         Ok(())
     }
 
-    pub fn flush_writer(&mut self) -> Result<(), Error> {
+    #[no_mangle]
+    pub extern fn flush_writer(&mut self) -> Result<(), Error> {
         self.writer.flush()
     }
 }
 
 impl BDFReader {
-    pub fn new(reader: BufReader<File>) -> Self {
+    #[no_mangle]
+    pub extern fn new(reader: BufReader<File>) -> Self {
         Self {
             metadata: None,
             lookup_table: None,
@@ -102,7 +109,8 @@ impl BDFReader {
     }
 
     /// Verifies the header of the file and reads and stores the metadata
-    pub fn read_metadata(&mut self) -> Result<&MetaChunk, Error> {
+    #[no_mangle]
+    pub extern fn read_metadata(&mut self) -> Result<&MetaChunk, Error> {
         if !self.validate_header() {
             return Err(Error::new(ErrorKind::InvalidData, "invalid BDF Header"));
         }
@@ -131,7 +139,8 @@ impl BDFReader {
 
     /// Reads the lookup table of the file.
     /// This function should be called after the read_metadata function was called
-    pub fn read_lookup_table(&mut self) -> Result<&HashLookupTable, Error> {
+    #[no_mangle]
+    pub extern fn read_lookup_table(&mut self) -> Result<&HashLookupTable, Error> {
         match &self.metadata {
             None => self.read_metadata()?,
             Some(t) => t,
@@ -150,7 +159,8 @@ impl BDFReader {
     }
 
     /// Validates the header of the file
-    fn validate_header(&mut self) -> bool {
+    #[no_mangle]
+    extern fn validate_header(&mut self) -> bool {
         let mut header = [0u8; 11];
         let _ = self.reader.read(&mut header);
 
@@ -158,7 +168,8 @@ impl BDFReader {
     }
 
     /// Returns the next chunk if one is available.
-    pub fn next_chunk(&mut self) -> Result<GenericChunk, Error> {
+    #[no_mangle]
+    pub extern fn next_chunk(&mut self) -> Result<GenericChunk, Error> {
         let mut length_raw = [0u8; 4];
         let _ = self.reader.read_exact(&mut length_raw)?;
         let length = BigEndian::read_u32(&mut length_raw);

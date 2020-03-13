@@ -14,6 +14,7 @@ pub const META_CHUNK_NAME: &str = "META";
 pub const HTBL_CHUNK_NAME: &str = "HTBL";
 pub const DTBL_CHUNK_NAME: &str = "DTBL";
 
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct GenericChunk {
     pub length: u32,
@@ -22,6 +23,7 @@ pub struct GenericChunk {
     pub crc: u32,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct MetaChunk {
     pub chunk_count: u32,
@@ -30,11 +32,13 @@ pub struct MetaChunk {
     pub compression_method: Option<String>,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct HashLookupTable {
     pub entries: HashMap<u32, HashEntry>,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct HashEntry {
     pub(crate) id: u32,
@@ -42,6 +46,7 @@ pub struct HashEntry {
     name: String,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone)]
 pub struct DataEntry {
     pub plain: String,
@@ -50,7 +55,8 @@ pub struct DataEntry {
 
 impl GenericChunk {
     /// Serializes the chunk to a vector of bytes
-    pub fn serialize(&mut self) -> Vec<u8> {
+    #[no_mangle]
+    pub extern fn serialize(&mut self) -> Vec<u8> {
         let mut serialized: Vec<u8> = Vec::new();
         let mut length_raw = [0u8; 4];
         BigEndian::write_u32(&mut length_raw, self.length);
@@ -66,7 +72,8 @@ impl GenericChunk {
     }
 
     /// Returns the data entries of the chunk
-    pub fn data_entries(
+    #[no_mangle]
+    pub extern fn data_entries(
         &mut self,
         lookup_table: &HashLookupTable,
     ) -> Result<Vec<DataEntry>, Error> {
@@ -116,7 +123,8 @@ impl GenericChunk {
     }
 
     /// Constructs the chunk from a Vec of Data entries and a hash lookup table
-    pub fn from_data_entries(
+    #[no_mangle]
+    pub extern fn from_data_entries(
         entries: &Vec<DataEntry>,
         lookup_table: &HashLookupTable,
     ) -> GenericChunk {
@@ -134,7 +142,8 @@ impl GenericChunk {
         }
     }
 
-    pub fn compress(&mut self) -> Result<(), Error> {
+    #[no_mangle]
+    pub extern fn compress(&mut self) -> Result<(), Error> {
         let data = self.data.as_slice();
         let mut compressor = XzEncoder::new(data, 6);
         let mut compressed: Vec<u8> = Vec::new();
@@ -145,7 +154,8 @@ impl GenericChunk {
         Ok(())
     }
 
-    pub fn decompress(&mut self) -> Result<(), Error> {
+    #[no_mangle]
+    pub extern fn decompress(&mut self) -> Result<(), Error> {
         let data = self.data.as_slice();
         let mut decompressor = XzDecoder::new(data);
         let mut decompressed: Vec<u8> = Vec::new();
@@ -194,7 +204,8 @@ impl From<&HashLookupTable> for GenericChunk {
 
 impl MetaChunk {
     /// Creates a new meta chunk
-    pub fn new(entry_count: u64, entries_per_chunk: u32, compress: bool) -> Self {
+    #[no_mangle]
+    pub extern fn new(entry_count: u64, entries_per_chunk: u32, compress: bool) -> Self {
         let compression_method = if compress {
             Some(LZMA.to_string())
         } else {
@@ -211,7 +222,8 @@ impl MetaChunk {
     }
 
     /// Serializes the chunk into bytes
-    pub fn serialize(&self) -> Vec<u8> {
+    #[no_mangle]
+    pub extern fn serialize(&self) -> Vec<u8> {
         let mut serialized_data: Vec<u8> = Vec::new();
         let mut chunk_count_raw = [0u8; 4];
         BigEndian::write_u32(&mut chunk_count_raw, self.chunk_count);
@@ -236,6 +248,7 @@ impl MetaChunk {
 impl TryFrom<GenericChunk> for MetaChunk {
     type Error = Error;
 
+    #[no_mangle]
     fn try_from(chunk: GenericChunk) -> Result<MetaChunk, Error> {
         if &chunk.name != META_CHUNK_NAME {
             return Err(Error::new(
@@ -272,17 +285,20 @@ impl TryFrom<GenericChunk> for MetaChunk {
 }
 
 impl HashLookupTable {
-    pub fn new(entries: HashMap<u32, HashEntry>) -> Self {
+    #[no_mangle]
+    pub extern fn new(entries: HashMap<u32, HashEntry>) -> Self {
         Self { entries }
     }
 
     /// Returns an entry by the name of the hash function
-    pub fn get_entry(&self, name: &String) -> Option<(&u32, &HashEntry)> {
+    #[no_mangle]
+    pub extern fn get_entry(&self, name: &String) -> Option<(&u32, &HashEntry)> {
         self.entries.iter().find(|(_, entry)| entry.name == *name)
     }
 
     /// Serializes the lookup table into a vector of bytes
-    pub fn serialize(&self) -> Vec<u8> {
+    #[no_mangle]
+    pub extern fn serialize(&self) -> Vec<u8> {
         let mut serialized_full: Vec<u8> = Vec::new();
         for (_, entry) in &self.entries {
             serialized_full.append(entry.serialize().as_mut())
@@ -295,6 +311,7 @@ impl HashLookupTable {
 impl TryFrom<GenericChunk> for HashLookupTable {
     type Error = Error;
 
+    #[no_mangle]
     fn try_from(chunk: GenericChunk) -> Result<HashLookupTable, Error> {
         if &chunk.name != HTBL_CHUNK_NAME {
             return Err(Error::new(
@@ -333,7 +350,8 @@ impl TryFrom<GenericChunk> for HashLookupTable {
 }
 
 impl HashEntry {
-    pub fn new(name: String, output_length: u32) -> Self {
+    #[no_mangle]
+    pub extern fn new(name: String, output_length: u32) -> Self {
         Self {
             id: 0,
             name,
@@ -342,7 +360,8 @@ impl HashEntry {
     }
 
     /// Serializes the entry to a vector of bytes
-    pub fn serialize(&self) -> Vec<u8> {
+    #[no_mangle]
+    pub extern fn serialize(&self) -> Vec<u8> {
         let mut serialized: Vec<u8> = Vec::new();
         let mut id_raw = [0u8; 4];
         BigEndian::write_u32(&mut id_raw, self.id);
@@ -361,7 +380,8 @@ impl HashEntry {
 }
 
 impl DataEntry {
-    pub fn new(plain: String) -> Self {
+    #[no_mangle]
+    pub extern fn new(plain: String) -> Self {
         Self {
             hashes: HashMap::new(),
             plain,
@@ -369,17 +389,20 @@ impl DataEntry {
     }
 
     /// Adds a hash to the hash values
-    pub fn add_hash_value(&mut self, name: String, value: Vec<u8>) {
+    #[no_mangle]
+    pub extern fn add_hash_value(&mut self, name: String, value: Vec<u8>) {
         self.hashes.insert(name, value);
     }
 
     /// Returns the hash value for a given name of a hash function
-    pub fn get_hash_value(&self, name: String) -> Option<&Vec<u8>> {
+    #[no_mangle]
+    pub extern fn get_hash_value(&self, name: String) -> Option<&Vec<u8>> {
         self.hashes.get(&name)
     }
 
     /// Serializes the entry to a vector of bytes
-    pub fn serialize(&self, lookup_table: &HashLookupTable) -> Vec<u8> {
+    #[no_mangle]
+    pub extern fn serialize(&self, lookup_table: &HashLookupTable) -> Vec<u8> {
         let mut pw_plain_raw = self.plain.clone().into_bytes();
         let mut pw_length_raw = [0u8; 4];
         BigEndian::write_u32(&mut pw_length_raw, pw_plain_raw.len() as u32);
