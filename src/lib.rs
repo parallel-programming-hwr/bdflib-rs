@@ -37,6 +37,7 @@ mod tests {
     #[test]
     fn it_writes_compressed() -> Result<(), Error> {
         let mut writer = new_writer("tmp2.bdf", 2, true)?;
+        writer.set_compression_level(3);
 
         writer.add_lookup_entry(HashEntry::new(FOO.to_string(), 4))?;
         writer.add_lookup_entry(HashEntry::new(BAR.to_string(), 5))?;

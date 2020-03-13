@@ -144,9 +144,9 @@ impl GenericChunk {
     }
 
     /// Compresses the data of the chunk using lzma with a level of 6
-    pub fn compress(&mut self) -> Result<(), Error> {
+    pub fn compress(&mut self, level: u32) -> Result<(), Error> {
         let data = self.data.as_slice();
-        let mut compressor = XzEncoder::new(data, 1);
+        let mut compressor = XzEncoder::new(data, level);
         let mut compressed: Vec<u8> = Vec::new();
         compressor.read_to_end(&mut compressed)?;
         self.length = compressed.len() as u32;

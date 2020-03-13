@@ -24,6 +24,7 @@ pub struct BDFWriter {
     data_entries: Vec<DataEntry>,
     head_written: bool,
     compressed: bool,
+    compression_level: u32,
 }
 
 impl BDFWriter {
@@ -36,6 +37,7 @@ impl BDFWriter {
             writer,
             head_written: false,
             compressed: compress,
+            compression_level: 1,
         }
     }
 
@@ -81,7 +83,7 @@ impl BDFWriter {
         let mut data_chunk =
             GenericChunk::from_data_entries(&self.data_entries, &self.lookup_table);
         if self.compressed {
-            data_chunk.compress()?;
+            data_chunk.compress(self.compression_level)?;
         }
         let data = data_chunk.serialize();
         self.writer.write(data.as_slice())?;
@@ -94,6 +96,11 @@ impl BDFWriter {
     /// This should be called when no more data is being written
     pub fn flush_writer(&mut self) -> Result<(), Error> {
         self.writer.flush()
+    }
+
+    /// Sets the compression level for lzma compression
+    pub fn set_compression_level(&mut self, level: u32) {
+        self.compression_level = level;
     }
 }
 
