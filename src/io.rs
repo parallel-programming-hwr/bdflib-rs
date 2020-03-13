@@ -40,7 +40,7 @@ impl BDFWriter {
     }
 
     /// Adds an entry to the hash lookup table
-    /// If the lookup table has already been written to the file, an error ris returned
+    /// If the lookup table has already been written to the file, an error is returned
     pub fn add_lookup_entry(&mut self, mut entry: HashEntry) -> Result<u32, Error> {
         if self.head_written {
             return Err(Error::new(
