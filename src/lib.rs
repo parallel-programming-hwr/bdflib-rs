@@ -2,10 +2,10 @@
 mod tests {
 
     use super::io::BDFWriter;
-    use std::io::{BufWriter, Error, BufReader};
-    use std::fs::{File, remove_file};
-    use crate::chunks::{HashEntry, DataEntry};
+    use crate::chunks::{DataEntry, HashEntry};
     use crate::io::BDFReader;
+    use std::fs::{remove_file, File};
+    use std::io::{BufReader, BufWriter, Error};
 
     const FOO: &str = "foo";
     const BAR: &str = "bar";
@@ -53,8 +53,7 @@ mod tests {
         entry_2.add_hash_value(FOO.to_string(), vec![4, 5, 2, 3]);
         writer.add_data_entry(entry_2)?;
 
-        writer.flush()?;
-        writer.flush_writer()?;
+        writer.finish()?;
 
         remove_file("tmp2.bdf")?;
 
@@ -65,8 +64,8 @@ mod tests {
     fn it_reads() -> Result<(), Error> {
         create_simple_file("tmp3.bdf", false)?;
         let mut reader = new_reader("tmp3.bdf")?;
-        reader.read_metadata()?;
-        let lookup_table = &reader.read_lookup_table()?.clone();
+        reader.read_start()?;
+        let lookup_table = &reader.lookup_table.clone().unwrap();
         let mut next_chunk = reader.next_chunk()?;
         let data_entries = next_chunk.data_entries(lookup_table)?;
         assert_eq!(data_entries[0].plain, "lol".to_string());
@@ -91,7 +90,7 @@ mod tests {
         Ok(())
     }
 
-    fn create_simple_file(name: &str, compressed: bool) -> Result<(), Error>{
+    fn create_simple_file(name: &str, compressed: bool) -> Result<(), Error> {
         let mut writer = new_writer(name, 1, compressed)?;
 
         writer.add_lookup_entry(HashEntry::new(FOO.to_string(), 4))?;

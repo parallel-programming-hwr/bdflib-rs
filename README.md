@@ -2,6 +2,54 @@
 
 This library provides methods to read and write Binary Dictionary Format files that can be used to represent rainbow tables.
 
+## Usage
+
+### Read
+
+```rust
+use bdf::io::BDFReader;
+use std::fs::File;
+use std::io::BufReader;
+
+fn main() {
+    let f = File::open("dictionary.bdf").unwrap();
+    let buf_reader = BufReader::new(f);
+    let mut bdf_reader = BDFReader::new(buf_reader);
+    bdf_reader.read_metadata().unwrap();
+    let lookup_table = bdf_reader.read_lookup_table().unwrap();
+    let lookup_table = lookup_table.clone();
+    while let Ok(next_chunk) = &mut bdf_reader.next_chunk() {
+        if let Ok(entries) = next_chunk.data_entries(&lookup_table) {
+            println!("{:?}", entries);
+        }
+    }
+}
+```
+
+### Write
+
+```rust
+use bdf::chunks::{DataEntry, HashEntry};
+use bdf::io::BDFWriter;
+use std::fs::File;
+use std::io::BufWriter;
+use std::convert::Into;
+
+fn main() {
+    let f = File::create("dictionary.bdf").unwrap();
+    let buf_writer = BufWriter::new(f);
+    let entry_count = 1;
+    let mut bdf_writer = BDFWriter::new(buf_writer, entry_count, false);
+    bdf_writer.add_lookup_entry(HashEntry::new("fakehash".into(), 3)).unwrap();
+    let mut entry = DataEntry::new("foo".into());
+    entry.add_hash_value("fakehash".into(), vec![0, 2, 3]);
+    bdf_writer.add_data_entry(entry).unwrap();
+    bdf_writer.flush().unwrap();
+    bdf_writer.flush_writer().unwrap();
+    println!("Finished writing!");
+}
+```
+
 ## Binary Dictionary File Format (bdf)
 
 ```

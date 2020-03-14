@@ -1,13 +1,12 @@
 use super::chunks::*;
-use std::io::{Write, BufWriter, ErrorKind, BufReader, Read};
-use std::fs::File;
-use std::collections::HashMap;
-use std::io::Error;
 use byteorder::{BigEndian, ByteOrder};
+use std::collections::HashMap;
 use std::convert::TryInto;
+use std::fs::File;
+use std::io::Error;
+use std::io::{BufReader, BufWriter, ErrorKind, Read, Write};
 
 const ENTRIES_PER_CHUNK: u32 = 100_000;
-
 
 pub struct BDFReader {
     reader: BufReader<File>,
@@ -15,7 +14,6 @@ pub struct BDFReader {
     pub lookup_table: Option<HashLookupTable>,
     compressed: bool,
 }
-
 
 pub struct BDFWriter {
     writer: BufWriter<File>,
@@ -28,7 +26,14 @@ pub struct BDFWriter {
 }
 
 impl BDFWriter {
-    
+    /// Creates a new BDFWriter.
+    /// The number for `entry_count` should be the total number of entries
+    /// This is required since the META chunk containing the information is the
+    /// first chunk to be written.
+    /// The number of entries can be used in tools that provide a progress
+    /// bar for how many entries were read.
+    /// If the `compress` parameter is true, each data chunk will be compressed
+    /// using lzma with a default level of 1.
     pub fn new(writer: BufWriter<File>, entry_count: u64, compress: bool) -> Self {
         Self {
             metadata: MetaChunk::new(entry_count, ENTRIES_PER_CHUNK, compress),
@@ -70,7 +75,6 @@ impl BDFWriter {
     }
 
     /// Writes the data to the file
-    
     pub fn flush(&mut self) -> Result<(), Error> {
         if !self.head_written {
             self.writer.write(BDF_HDR)?;
@@ -98,6 +102,15 @@ impl BDFWriter {
         self.writer.flush()
     }
 
+    /// Flushes the buffered chunk data and the writer
+    /// to finish the file.
+    pub fn finish(&mut self) -> Result<(), Error> {
+        self.flush()?;
+        self.flush_writer()?;
+
+        Ok(())
+    }
+
     /// Sets the compression level for lzma compression
     pub fn set_compression_level(&mut self, level: u32) {
         self.compression_level = level;
@@ -105,18 +118,21 @@ impl BDFWriter {
 
     /// Changes the entries per chunk value.
     /// Returns an error if the metadata has already been written.
-    pub fn set_entries_per_chunk(&mut self, number: u32) -> Result<(), Error>{
+    pub fn set_entries_per_chunk(&mut self, number: u32) -> Result<(), Error> {
         if self.head_written {
-            return Err(Error::new(ErrorKind::Other, "the head has already been written"))
+            return Err(Error::new(
+                ErrorKind::Other,
+                "the head has already been written",
+            ));
         }
         self.metadata.entries_per_chunk = number;
-        self.metadata.chunk_count = (self.metadata.entry_count as f64 / number as f64).ceil() as u32;
+        self.metadata.chunk_count =
+            (self.metadata.entry_count as f64 / number as f64).ceil() as u32;
         Ok(())
     }
 }
 
 impl BDFReader {
-
     /// Creates a new BDFReader
     pub fn new(reader: BufReader<File>) -> Self {
         Self {
@@ -125,6 +141,14 @@ impl BDFReader {
             reader,
             compressed: false,
         }
+    }
+
+    /// Reads the metadata and lookup table
+    pub fn read_start(&mut self) -> Result<(), Error> {
+        self.read_metadata()?;
+        self.read_lookup_table()?;
+
+        Ok(())
     }
 
     /// Verifies the header of the file and reads and stores the metadata
