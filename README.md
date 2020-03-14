@@ -13,8 +13,7 @@ use std::io::BufReader;
 
 fn main() {
     let f = File::open("dictionary.bdf").unwrap();
-    let buf_reader = BufReader::new(f);
-    let mut bdf_reader = BDFReader::new(buf_reader);
+    let mut bdf_reader = BDFReader::new(f);
     bdf_reader.read_metadata().unwrap();
     let lookup_table = bdf_reader.read_lookup_table().unwrap();
     let lookup_table = lookup_table.clone();
@@ -37,9 +36,8 @@ use std::convert::Into;
 
 fn main() {
     let f = File::create("dictionary.bdf").unwrap();
-    let buf_writer = BufWriter::new(f);
     let entry_count = 1;
-    let mut bdf_writer = BDFWriter::new(buf_writer, entry_count, false);
+    let mut bdf_writer = BDFWriter::new(f, entry_count, false);
     bdf_writer.add_lookup_entry(HashEntry::new("fakehash".into(), 3)).unwrap();
     let mut entry = DataEntry::new("foo".into());
     entry.add_hash_value("fakehash".into(), vec![0, 2, 3]);

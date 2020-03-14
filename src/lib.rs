@@ -5,7 +5,7 @@ mod tests {
     use crate::chunks::{DataEntry, HashEntry};
     use crate::io::BDFReader;
     use std::fs::{remove_file, File};
-    use std::io::{BufReader, BufWriter, Error};
+    use std::io::Error;
 
     const FOO: &str = "foo";
     const BAR: &str = "bar";
@@ -106,16 +106,14 @@ mod tests {
 
     fn new_reader(file_name: &str) -> Result<BDFReader, Error> {
         let file = File::open(file_name)?;
-        let f = BufReader::new(file);
 
-        Ok(BDFReader::new(f))
+        Ok(BDFReader::new(file))
     }
 
     fn new_writer(file_name: &str, entries: u64, compress: bool) -> Result<BDFWriter, Error> {
         let file = File::create(file_name)?;
-        let f = BufWriter::new(file);
 
-        Ok(BDFWriter::new(f, entries, compress))
+        Ok(BDFWriter::new(file, entries, compress))
     }
 }
 

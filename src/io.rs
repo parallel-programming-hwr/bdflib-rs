@@ -34,12 +34,12 @@ impl BDFWriter {
     /// bar for how many entries were read.
     /// If the `compress` parameter is true, each data chunk will be compressed
     /// using lzma with a default level of 1.
-    pub fn new(writer: BufWriter<File>, entry_count: u64, compress: bool) -> Self {
+    pub fn new(inner: File, entry_count: u64, compress: bool) -> Self {
         Self {
             metadata: MetaChunk::new(entry_count, ENTRIES_PER_CHUNK, compress),
             lookup_table: HashLookupTable::new(HashMap::new()),
             data_entries: Vec::new(),
-            writer,
+            writer: BufWriter::new(inner),
             head_written: false,
             compressed: compress,
             compression_level: 1,
@@ -134,11 +134,11 @@ impl BDFWriter {
 
 impl BDFReader {
     /// Creates a new BDFReader
-    pub fn new(reader: BufReader<File>) -> Self {
+    pub fn new(inner: File) -> Self {
         Self {
             metadata: None,
             lookup_table: None,
-            reader,
+            reader: BufReader::new(inner),
             compressed: false,
         }
     }
@@ -226,6 +226,7 @@ impl BDFReader {
             data,
             crc,
         };
+
         if gen_chunk.name == DTBL_CHUNK_NAME.to_string() && self.compressed {
             gen_chunk.decompress()?;
         }
