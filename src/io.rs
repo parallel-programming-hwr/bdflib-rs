@@ -93,19 +93,21 @@ impl BDFWriter {
     /// Starts threads for parallel chunk compression
     pub fn start_threads(&self) {
         for _ in 0..num_cpus::get() {
-            let r = self.thread_manager.receiver_work.clone();
-            let s = self.thread_manager.sender_result.clone();
-            let wg: WaitGroup = self.thread_manager.wg.clone();
             let compress = self.compressed;
             let compression_level = self.compression_level;
-            thread::spawn(move || {
-                for mut chunk in r.iter() {
-                    if compress {
-                        chunk.compress(compression_level).expect("failed to compress chunk");
+            thread::spawn({
+                let r = self.thread_manager.receiver_work.clone();
+                let s = self.thread_manager.sender_result.clone();
+                let wg: WaitGroup = self.thread_manager.wg.clone();
+                move || {
+                    for mut chunk in r {
+                        if compress {
+                            chunk.compress(compression_level).expect("failed to compress chunk");
+                        }
+                        s.send(chunk.serialize()).expect("failed to send result");
                     }
-                    s.send(chunk.serialize()).expect("failed to send result");
+                    drop(wg);
                 }
-                drop(wg);
             });
         }
     }
