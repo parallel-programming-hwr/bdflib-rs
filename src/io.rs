@@ -273,7 +273,7 @@ impl BDFReader {
     }
 
     /// Adds a chunk to the decompression channel to be decompressed by a worker thread
-    fn add_compression_chunk(&mut self) -> Result<(), Error> {
+    pub fn add_compression_chunk(&mut self) -> Result<(), Error> {
         let gen_chunk = self.next_chunk_raw()?;
         if gen_chunk.name == DTBL_CHUNK_NAME.to_string() && self.compressed {
             if let Err(_) = self.thread_manager.sender_work.send(gen_chunk) {
