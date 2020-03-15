@@ -28,8 +28,7 @@ mod tests {
         entry_2.add_hash_value(FOO.to_string(), vec![4, 5, 2, 3]);
         writer.add_data_entry(entry_2)?;
 
-        writer.flush()?;
-        writer.flush_writer()?;
+        writer.finish()?;
         remove_file("tmp1.bdf")?;
 
         Ok(())
@@ -98,8 +97,7 @@ mod tests {
         entry_1.add_hash_value(FOO.to_string(), vec![2, 4, 0, 2]);
         writer.add_data_entry(entry_1)?;
 
-        writer.flush()?;
-        writer.flush_writer()?;
+        writer.finish()?;
 
         Ok(())
     }

@@ -42,8 +42,7 @@ fn main() {
     let mut entry = DataEntry::new("foo".into());
     entry.add_hash_value("fakehash".into(), vec![0, 2, 3]);
     bdf_writer.add_data_entry(entry).unwrap();
-    bdf_writer.flush().unwrap();
-    bdf_writer.flush_writer().unwrap();
+    bdf_writer.finish().unwrap();
     println!("Finished writing!");
 }
 ```

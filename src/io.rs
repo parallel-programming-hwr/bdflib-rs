@@ -5,8 +5,20 @@ use std::convert::TryInto;
 use std::fs::File;
 use std::io::Error;
 use std::io::{BufReader, BufWriter, ErrorKind, Read, Write};
+use std::thread;
+use crossbeam_channel::{bounded, Sender, Receiver};
+use crossbeam_utils::sync::WaitGroup;
 
 const ENTRIES_PER_CHUNK: u32 = 100_000;
+
+struct ThreadManager<T1, T2> {
+    pub sender_work: Option<Sender<T1>>,
+    pub receiver_work: Receiver<T1>,
+    pub sender_result: Sender<T2>,
+    pub receiver_result: Receiver<T2>,
+    pub wg: WaitGroup,
+    pub threads_started: bool,
+}
 
 pub struct BDFReader {
     reader: BufReader<File>,
@@ -23,6 +35,36 @@ pub struct BDFWriter {
     head_written: bool,
     compressed: bool,
     compression_level: u32,
+    thread_manager: ThreadManager<GenericChunk, Vec<u8>>,
+}
+
+impl<T1, T2> ThreadManager<T1, T2> {
+    /// Creates a new thread manager to store channels and information
+    /// about threads to control them
+    pub fn new(cap: usize) -> Self {
+        let (s1, r1) = bounded(cap);
+        let (s2, r2) = bounded(cap);
+        Self {
+            sender_work: Some(s1),
+            receiver_work: r1,
+            sender_result: s2,
+            receiver_result: r2,
+            wg: WaitGroup::new(),
+            threads_started: false,
+        }
+    }
+
+    /// Drops the sender for work.
+    pub fn drop_sender(&mut self) {
+        self.sender_work = None;
+    }
+
+    /// Waits for the waitgroup
+    pub fn wait(&mut self) {
+        let wg = self.wg.clone();
+        self.wg = WaitGroup::new();
+        wg.wait();
+    }
 }
 
 impl BDFWriter {
@@ -35,6 +77,7 @@ impl BDFWriter {
     /// If the `compress` parameter is true, each data chunk will be compressed
     /// using lzma with a default level of 1.
     pub fn new(inner: File, entry_count: u64, compress: bool) -> Self {
+        let thread_manager = ThreadManager::new(num_cpus::get());
         Self {
             metadata: MetaChunk::new(entry_count, ENTRIES_PER_CHUNK, compress),
             lookup_table: HashLookupTable::new(HashMap::new()),
@@ -43,6 +86,27 @@ impl BDFWriter {
             head_written: false,
             compressed: compress,
             compression_level: 1,
+            thread_manager,
+        }
+    }
+
+    /// Starts threads for parallel chunk compression
+    pub fn start_threads(&self) {
+        for _ in 0..num_cpus::get() {
+            let r = self.thread_manager.receiver_work.clone();
+            let s = self.thread_manager.sender_result.clone();
+            let wg: WaitGroup = self.thread_manager.wg.clone();
+            let compress = self.compressed;
+            let compression_level = self.compression_level;
+            thread::spawn(move || {
+                for mut chunk in r.iter() {
+                    if compress {
+                        chunk.compress(compression_level).expect("failed to compress chunk");
+                    }
+                    s.send(chunk.serialize()).expect("failed to send result");
+                }
+                drop(wg);
+            });
         }
     }
 
@@ -75,7 +139,7 @@ impl BDFWriter {
     }
 
     /// Writes the data to the file
-    pub fn flush(&mut self) -> Result<(), Error> {
+    fn flush(&mut self) -> Result<(), Error> {
         if !self.head_written {
             self.writer.write(BDF_HDR)?;
             let mut generic_meta = GenericChunk::from(&self.metadata);
@@ -84,13 +148,23 @@ impl BDFWriter {
             self.writer.write(generic_lookup.serialize().as_slice())?;
             self.head_written = true;
         }
+        if !self.thread_manager.threads_started {
+            self.start_threads();
+            self.thread_manager.threads_started = true;
+        }
         let mut data_chunk =
             GenericChunk::from_data_entries(&self.data_entries, &self.lookup_table);
-        if self.compressed {
-            data_chunk.compress(self.compression_level)?;
+        if let Some(sender) = &self.thread_manager.sender_work {
+            sender.send(data_chunk).expect("failed to send work to threads");
+        } else {
+            if self.compressed {
+                data_chunk.compress(self.compression_level)?;
+            }
+            self.thread_manager.sender_result.send(data_chunk.serialize()).expect("failed to send serialization result");
         }
-        let data = data_chunk.serialize();
-        self.writer.write(data.as_slice())?;
+        while let Ok(data) = self.thread_manager.receiver_result.try_recv() {
+            self.writer.write(data.as_slice())?;
+        }
         self.data_entries = Vec::new();
 
         Ok(())
@@ -98,13 +172,15 @@ impl BDFWriter {
 
     /// Flushes the writer
     /// This should be called when no more data is being written
-    pub fn flush_writer(&mut self) -> Result<(), Error> {
+    fn flush_writer(&mut self) -> Result<(), Error> {
         self.writer.flush()
     }
 
     /// Flushes the buffered chunk data and the writer
     /// to finish the file.
     pub fn finish(&mut self) -> Result<(), Error> {
+        self.thread_manager.drop_sender();
+        self.thread_manager.wait();
         self.flush()?;
         self.flush_writer()?;
 
