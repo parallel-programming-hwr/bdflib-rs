@@ -233,7 +233,7 @@ impl BDFReader {
             lookup_table: None,
             reader: BufReader::new(inner),
             compressed: false,
-            thread_manager: ThreadManager::new(num_cpus::get()),
+            thread_manager: ThreadManager::new(num_cpus::get() * 2),
         }
     }
 
