@@ -66,6 +66,14 @@ impl<T1, T2> ThreadManager<T1, T2> {
         drop(sender);
     }
 
+    /// Drops the receiver
+    pub fn drop_sender_result(&mut self) {
+        let sender = self.sender_result.clone();
+        let (s2,_) = bounded(0);
+        self.sender_result = s2;
+        drop(sender);
+    }
+
     /// Waits for the wait group
     pub fn wait(&mut self) {
         let wg = self.wg.clone();
@@ -257,6 +265,7 @@ impl BDFReader {
                 break;
             }
         }
+        self.thread_manager.drop_sender_result();
     }
 
     /// Adds a chunk to the decompression channel to be decompressed by a worker thread
