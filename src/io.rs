@@ -59,7 +59,7 @@ impl<T1, T2> ThreadManager<T1, T2> {
         self.sender_work = None;
     }
 
-    /// Waits for the waitgroup
+    /// Waits for the wait group
     pub fn wait(&mut self) {
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
@@ -181,6 +181,7 @@ impl BDFWriter {
     /// Flushes the buffered chunk data and the writer
     /// to finish the file.
     pub fn finish(&mut self) -> Result<(), Error> {
+        self.flush()?;
         self.thread_manager.drop_sender();
         self.thread_manager.wait();
         self.flush()?;
