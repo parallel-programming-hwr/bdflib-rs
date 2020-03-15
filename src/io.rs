@@ -164,10 +164,16 @@ impl BDFWriter {
             }
             self.thread_manager.sender_result.send(data_chunk.serialize()).expect("failed to send serialization result");
         }
+        self.write_serialized()?;
+        self.data_entries = Vec::new();
+
+        Ok(())
+    }
+
+    fn write_serialized(&mut self) -> Result<(), Error> {
         while let Ok(data) = self.thread_manager.receiver_result.try_recv() {
             self.writer.write(data.as_slice())?;
         }
-        self.data_entries = Vec::new();
 
         Ok(())
     }
@@ -184,7 +190,7 @@ impl BDFWriter {
         self.flush()?;
         self.thread_manager.drop_sender();
         self.thread_manager.wait();
-        self.flush()?;
+        self.write_serialized()?;
         self.flush_writer()?;
 
         Ok(())
