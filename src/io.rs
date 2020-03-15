@@ -247,7 +247,7 @@ impl BDFReader {
 
     /// Starts threads for decompressing chunks
     fn start_threads(&mut self) {
-        for _ in 0..num_cpus::get() {
+        for _ in 0..num_cpus::get()/2 {
             thread::spawn({
                 let r = self.thread_manager.receiver_work.clone();
                 let s = self.thread_manager.sender_result.clone();
@@ -260,6 +260,10 @@ impl BDFReader {
                     drop(wg);
                 }
             });
+        }
+        // add some initial data to be decompressed.
+        // the data that is added is four times the number of threads
+        for _ in 0..num_cpus::get() * 2 {
             if let Err(_) = self.add_compression_chunk() {
                 self.thread_manager.drop_sender();
                 break;
