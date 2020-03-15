@@ -13,7 +13,7 @@ const ENTRIES_PER_CHUNK: u32 = 100_000;
 
 #[derive(Debug)]
 struct ThreadManager<T1, T2> {
-    pub sender_work: Option<Sender<T1>>,
+    pub sender_work: Sender<T1>,
     pub receiver_work: Receiver<T1>,
     pub sender_result: Sender<T2>,
     pub receiver_result: Receiver<T2>,
@@ -48,7 +48,7 @@ impl<T1, T2> ThreadManager<T1, T2> {
         let (s1, r1) = bounded(cap);
         let (s2, r2) = bounded(cap);
         Self {
-            sender_work: Some(s1),
+            sender_work: s1,
             receiver_work: r1,
             sender_result: s2,
             receiver_result: r2,
@@ -59,7 +59,10 @@ impl<T1, T2> ThreadManager<T1, T2> {
 
     /// Drops the sender for work.
     pub fn drop_sender(&mut self) {
-        self.sender_work = None;
+        let sender = self.sender_work.clone();
+        let (s1, _) = bounded(0);
+        self.sender_work = s1;
+        drop(sender);
     }
 
     /// Waits for the wait group
@@ -94,7 +97,7 @@ impl BDFWriter {
     }
 
     /// Starts threads for parallel chunk compression
-    pub fn start_threads(&self) {
+    fn start_threads(&self) {
         for _ in 0..num_cpus::get() {
             let compress = self.compressed;
             let compression_level = self.compression_level;
@@ -158,16 +161,9 @@ impl BDFWriter {
             self.start_threads();
             self.thread_manager.threads_started = true;
         }
-        let mut data_chunk =
+        let data_chunk =
             GenericChunk::from_data_entries(&self.data_entries, &self.lookup_table);
-        if let Some(sender) = &self.thread_manager.sender_work {
-            sender.send(data_chunk).expect("failed to send work to threads");
-        } else {
-            if self.compressed {
-                data_chunk.compress(self.compression_level)?;
-            }
-            self.thread_manager.sender_result.send(data_chunk.serialize()).expect("failed to send serialization result");
-        }
+        self.thread_manager.sender_work.send(data_chunk).expect("failed to send work to threads");
         self.write_serialized()?;
         self.data_entries = Vec::new();
 
