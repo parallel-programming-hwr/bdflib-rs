@@ -12,7 +12,7 @@ use crossbeam_utils::sync::WaitGroup;
 const ENTRIES_PER_CHUNK: u32 = 100_000;
 
 #[derive(Debug)]
-pub struct ThreadManager<T1, T2> {
+struct ThreadManager<T1, T2> {
     pub sender_work: Sender<T1>,
     pub receiver_work: Receiver<T1>,
     pub sender_result: Sender<T2>,
@@ -38,7 +38,7 @@ pub struct BDFWriter {
     head_written: bool,
     compressed: bool,
     compression_level: u32,
-    pub thread_manager: ThreadManager<GenericChunk, Vec<u8>>,
+    thread_manager: ThreadManager<GenericChunk, Vec<u8>>,
 }
 
 impl<T1, T2> ThreadManager<T1, T2> {
