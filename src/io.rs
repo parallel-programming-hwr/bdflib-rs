@@ -247,7 +247,7 @@ impl BDFReader {
 
     /// Starts threads for decompressing chunks
     fn start_threads(&mut self) {
-        for _ in 0..num_cpus::get()/2 {
+        for _ in 0..(num_cpus::get() as f32/2f32).min(1f32) as usize {
             thread::spawn({
                 let r = self.thread_manager.receiver_work.clone();
                 let s = self.thread_manager.sender_result.clone();
