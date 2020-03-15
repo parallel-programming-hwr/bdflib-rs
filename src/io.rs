@@ -11,6 +11,7 @@ use crossbeam_utils::sync::WaitGroup;
 
 const ENTRIES_PER_CHUNK: u32 = 100_000;
 
+#[derive(Debug)]
 struct ThreadManager<T1, T2> {
     pub sender_work: Option<Sender<T1>>,
     pub receiver_work: Receiver<T1>,
@@ -20,6 +21,7 @@ struct ThreadManager<T1, T2> {
     pub threads_started: bool,
 }
 
+#[derive(Debug)]
 pub struct BDFReader {
     reader: BufReader<File>,
     pub metadata: Option<MetaChunk>,
@@ -27,6 +29,7 @@ pub struct BDFReader {
     compressed: bool,
 }
 
+#[derive(Debug)]
 pub struct BDFWriter {
     writer: BufWriter<File>,
     metadata: MetaChunk,
@@ -107,6 +110,7 @@ impl BDFWriter {
                         s.send(chunk.serialize()).expect("failed to send result");
                     }
                     drop(wg);
+                    drop(s);
                 }
             });
         }

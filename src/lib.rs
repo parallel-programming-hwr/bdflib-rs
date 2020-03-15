@@ -36,8 +36,9 @@ mod tests {
 
     #[test]
     fn it_writes_compressed() -> Result<(), Error> {
-        let mut writer = new_writer("tmp2.bdf", 2, true)?;
+        let mut writer = new_writer("tmp2.bdf", 3, true)?;
         writer.set_compression_level(3);
+        writer.set_entries_per_chunk(2)?;
 
         writer.add_lookup_entry(HashEntry::new(FOO.to_string(), 4))?;
         writer.add_lookup_entry(HashEntry::new(BAR.to_string(), 5))?;
@@ -51,6 +52,11 @@ mod tests {
         entry_2.add_hash_value(BAR.to_string(), vec![0, 3, 2, 1, 5]);
         entry_2.add_hash_value(FOO.to_string(), vec![4, 5, 2, 3]);
         writer.add_data_entry(entry_2)?;
+
+        let mut entry_3 = DataEntry::new("lool".to_string());
+        entry_3.add_hash_value(BAR.to_string(), vec![1, 3, 2, 1, 5]);
+        entry_3.add_hash_value(FOO.to_string(), vec![5, 5, 2, 3]);
+        writer.add_data_entry(entry_3)?;
 
         writer.finish()?;
 
